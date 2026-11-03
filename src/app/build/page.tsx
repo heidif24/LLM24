@@ -2,7 +2,17 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Sparkles, Loader2, Wand2, Layout, Type, Image as ImageIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Sparkles,
+  Loader2,
+  Wand2,
+  Layout,
+  Type,
+  Image as ImageIcon,
+  CheckCircle2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const EXAMPLE_PROMPTS = [
@@ -14,25 +24,47 @@ const EXAMPLE_PROMPTS = [
 ];
 
 export default function BuildPage() {
+  const router = useRouter();
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [step, setStep] = useState<"input" | "generating" | "preview">("input");
+  const [generatedSite, setGeneratedSite] = useState<any>(null);
+  const [error, setError] = useState("");
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
     setStep("generating");
+    setError("");
 
-    // Simulate generation for now (will connect to real AI later)
-    await new Promise((resolve) => setTimeout(resolve, 3500));
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt }),
+      });
 
-    setIsGenerating(false);
-    setStep("preview");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Generation failed");
+      }
+
+      setGeneratedSite(data.site);
+      // Save to localStorage for now (later will use real DB)
+      localStorage.setItem("naijabuild_last_site", JSON.stringify(data.site));
+      setStep("preview");
+    } catch (err: any) {
+      console.error(err);
+      setError(err.message || "Something went wrong. Please try again.");
+      setStep("input");
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Top bar */}
       <header className="bg-white border-b border-gray-100 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900">
@@ -45,7 +77,9 @@ export default function BuildPage() {
             </div>
             <span className="font-semibold text-sm">NaijaBuild</span>
           </div>
-          <div className="w-16" />
+          <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
+            Dashboard
+          </Link>
         </div>
       </header>
 
@@ -65,6 +99,12 @@ export default function BuildPage() {
               </p>
             </div>
 
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm rounded-xl px-4 py-3">
+                {error}
+              </div>
+            )}
+
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <textarea
                 value={prompt}
@@ -73,7 +113,7 @@ export default function BuildPage() {
                 className="w-full h-48 p-5 text-base resize-none focus:outline-none placeholder:text-gray-400"
               />
               <div className="border-t border-gray-100 px-5 py-4 flex items-center justify-between bg-gray-50">
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-gray-500 hidden sm:block">
                   Tip: Mention your business type, location and what visitors should do
                 </p>
                 <Button
@@ -106,7 +146,7 @@ export default function BuildPage() {
                     onClick={() => setPrompt(example)}
                     className="text-left text-sm bg-white border border-gray-200 hover:border-green-300 hover:bg-green-50 rounded-xl px-4 py-2.5 transition text-gray-700"
                   >
-                    {example.length > 70 ? example.slice(0, 70) + "..." : example}
+                    {example.length > 65 ? example.slice(0, 65) + "..." : example}
                   </button>
                 ))}
               </div>
@@ -131,8 +171,7 @@ export default function BuildPage() {
               ].map((item, i) => (
                 <div
                   key={item.text}
-                  className="flex items-center gap-3 text-sm text-gray-600 animate-pulse"
-                  style={{ animationDelay: `${i * 0.4}s` }}
+                  className="flex items-center gap-3 text-sm text-gray-600"
                 >
                   <item.icon className="w-4 h-4 text-green-600" />
                   {item.text}
@@ -142,8 +181,13 @@ export default function BuildPage() {
           </div>
         )}
 
-        {step === "preview" && (
+        {step === "preview" && generatedSite && (
           <div className="space-y-6">
+            <div className="flex items-center gap-2 text-green-700 bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-medium">Website generated successfully!</span>
+            </div>
+
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-gray-100 px-4 py-3 flex items-center gap-2 border-b">
                 <div className="flex gap-1.5">
@@ -153,31 +197,92 @@ export default function BuildPage() {
                 </div>
                 <div className="flex-1 text-center">
                   <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-full">
-                    yourwebsite.naijabuild.com
+                    preview.naijabuild.com
                   </span>
                 </div>
               </div>
-              <div className="p-8 min-h-[420px] bg-gradient-to-b from-white to-gray-50">
-                <div className="max-w-lg mx-auto text-center space-y-6">
-                  <div className="w-16 h-16 rounded-2xl bg-green-100 mx-auto flex items-center justify-center">
-                    <Sparkles className="w-8 h-8 text-green-600" />
+
+              {/* Simple live preview of generated content */}
+              <div className="p-6 sm:p-10" style={{ borderTop: `4px solid ${generatedSite.primaryColor || "#16a34a"}` }}>
+                <div className="max-w-xl mx-auto space-y-10">
+                  <div className="text-center">
+                    <h1 className="text-3xl font-bold text-gray-900">{generatedSite.title}</h1>
+                    <p className="mt-2 text-gray-600">{generatedSite.tagline}</p>
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900">Your website is ready!</h2>
-                  <p className="text-gray-600">
-                    This is a preview of what was generated. In the full version you will be able to edit every section, change colors, add pages and publish.
-                  </p>
-                  <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
-                    <Button size="lg">Publish Website</Button>
-                    <Button variant="outline" size="lg" onClick={() => setStep("input")}>
-                      Edit Prompt
-                    </Button>
-                  </div>
+
+                  {generatedSite.pages?.[0]?.sections?.map((section: any, idx: number) => {
+                    if (section.type === "hero") {
+                      return (
+                        <div key={idx} className="text-center space-y-4 py-6">
+                          <h2 className="text-2xl font-bold">{section.headline}</h2>
+                          <p className="text-gray-600">{section.subheadline}</p>
+                          <Button style={{ backgroundColor: generatedSite.primaryColor }}>
+                            {section.ctaText}
+                          </Button>
+                        </div>
+                      );
+                    }
+                    if (section.type === "features") {
+                      return (
+                        <div key={idx}>
+                          <h3 className="text-xl font-semibold text-center mb-6">{section.title}</h3>
+                          <div className="grid sm:grid-cols-3 gap-4">
+                            {section.items?.map((item: any, i: number) => (
+                              <div key={i} className="bg-gray-50 rounded-xl p-4 text-center">
+                                <h4 className="font-medium">{item.title}</h4>
+                                <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    }
+                    if (section.type === "about") {
+                      return (
+                        <div key={idx} className="text-center">
+                          <h3 className="text-xl font-semibold mb-3">{section.title}</h3>
+                          <p className="text-gray-600">{section.content}</p>
+                        </div>
+                      );
+                    }
+                    if (section.type === "contact") {
+                      return (
+                        <div key={idx} className="bg-gray-50 rounded-2xl p-6 text-center">
+                          <h3 className="text-xl font-semibold mb-4">{section.title}</h3>
+                          <div className="space-y-2 text-sm text-gray-700">
+                            {section.whatsapp && <p>WhatsApp: {section.whatsapp}</p>}
+                            {section.phone && <p>Phone: {section.phone}</p>}
+                            {section.email && <p>Email: {section.email}</p>}
+                            {section.address && <p>{section.address}</p>}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })}
                 </div>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-900">
-              <strong>Note:</strong> Real AI generation will be connected next. Right now this is the complete user flow and beautiful interface. We will plug in DeepSeek / Qwen / Groq shortly.
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                size="lg"
+                className="flex-1"
+                onClick={() => router.push("/dashboard")}
+              >
+                Save & Go to Dashboard
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="flex-1"
+                onClick={() => {
+                  setStep("input");
+                  setGeneratedSite(null);
+                }}
+              >
+                Generate Another
+              </Button>
             </div>
           </div>
         )}

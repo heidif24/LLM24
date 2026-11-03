@@ -4,26 +4,39 @@
 
 Create professional websites in minutes using AI. Pay in Naira. Hosted for you.
 
-## Live Features (Current)
+---
 
-- ✅ Modern landing page tailored for Nigerian users
-- ✅ AI website generation flow (`/build`)
-- ✅ Real AI API integration (Groq / DeepSeek ready)
-- ✅ Live preview of generated websites
-- ✅ Dashboard to manage websites
-- ✅ Pricing page in Naira
-- ✅ Paystack helper structure ready
-- ✅ Mobile-first, clean green-themed design
+## Full End-to-End MVP (Current Status)
 
-## How Generation Works
+| Feature                        | Status      | Notes                                      |
+|--------------------------------|-------------|--------------------------------------------|
+| Landing page                   | ✅ Done     | Nigerian-focused, clean green design       |
+| AI website generation          | ✅ Done     | Groq / DeepSeek ready                      |
+| Live preview of generated site | ✅ Done     | Real sections, colors, WhatsApp links      |
+| User authentication            | ✅ Done     | Register / Login (client-side MVP)         |
+| Dashboard                      | ✅ Done     | View, open, delete websites                |
+| Save websites permanently      | ✅ Done     | Tied to user account                       |
+| Pricing page (Naira)           | ✅ Done     | ₦4,500 / ₦12,000 / ₦25,000                 |
+| Checkout & Publish flow        | ✅ Done     | Simulated payment → publish                |
+| Published status + subdomain   | ✅ Done     | Marks site as live                         |
+| Paystack structure             | ✅ Ready    | Just add your keys                         |
 
-1. User describes their business / website in plain English
-2. Backend calls Groq (or DeepSeek) with a carefully designed system prompt
-3. AI returns structured JSON (title, sections, colors, contact info, WhatsApp etc.)
-4. Frontend renders a beautiful live preview
-5. User can save to dashboard and later publish
+---
 
-## Setup
+## User Journey (End-to-End)
+
+1. Land on homepage → click **Start Building**
+2. Describe the website in plain English
+3. AI generates a full structured website
+4. Preview the result immediately
+5. Sign up / Log in
+6. Website is saved to dashboard
+7. Click **Publish** → choose plan → pay (simulated)
+8. Website becomes **Published**
+
+---
+
+## Quick Start
 
 ```bash
 git clone https://github.com/heidif24/LLM24.git
@@ -31,65 +44,60 @@ cd LLM24
 npm install
 ```
 
-Create a `.env.local` file:
+Create `.env.local`:
 
 ```env
-GROQ_API_KEY=your_groq_key
-# or
-DEEPSEEK_API_KEY=your_deepseek_key
-
+GROQ_API_KEY=gsk_your_key_here
 AI_PROVIDER=groq
 ```
 
-Then run:
+Run:
 
 ```bash
 npm run dev
 ```
 
-Open http://localhost:3000
+Open [http://localhost:3000](http://localhost:3000)
 
-### Getting free AI keys
+### Free AI Keys
+- Groq → https://console.groq.com (recommended, very fast)
+- DeepSeek → https://platform.deepseek.com
 
-- **Groq**: https://console.groq.com (very fast, generous free tier)
-- **DeepSeek**: https://platform.deepseek.com (cheap and high quality)
+---
 
 ## Project Structure
 
 ```
 src/
   app/
-    page.tsx              → Landing page
-    build/page.tsx        → Main AI builder
-    dashboard/page.tsx    → User dashboard
-    preview/[id]/page.tsx → Full website preview
-    pricing/page.tsx      → Naira pricing
-    login/page.tsx        → Auth skeleton
-    api/generate/route.ts → AI generation endpoint
-  components/ui/          → Reusable UI components
+    page.tsx                 → Landing
+    build/page.tsx           → AI Builder
+    dashboard/page.tsx       → User dashboard
+    preview/[id]/page.tsx    → Full website view
+    checkout/page.tsx        → Payment + Publish
+    pricing/page.tsx         → Pricing
+    login/page.tsx           → Auth
+    api/generate/route.ts    → AI endpoint
   lib/
+    auth.ts                  → Auth + site storage
+    paystack.ts              → Payment helpers
     utils.ts
-    paystack.ts           → Payment helpers
+  components/ui/
 ```
 
-## Roadmap (Next)
+---
 
-- [ ] Real user authentication (NextAuth or Clerk)
-- [ ] Database (Supabase / PlanetScale) to store websites permanently
-- [ ] Full Paystack checkout + webhook verification
-- [ ] One-click publish to custom subdomain
-- [ ] Visual editor (edit text, colors, sections after generation)
-- [ ] WhatsApp order / contact button automation
-- [ ] Custom domain support
+## Next Production Steps
 
-## Tech Stack
-
-- Next.js 15 (App Router)
-- TypeScript
-- Tailwind CSS
-- Groq / DeepSeek for AI
-- Paystack (Naira payments)
+1. Replace client-side auth with real backend (NextAuth + database)
+2. Move site storage from localStorage to Supabase / Postgres
+3. Connect real Paystack (public + secret keys + webhook)
+4. Deploy to Vercel
+5. Add custom domain support
+6. Add visual editor after generation
 
 ---
 
 Built with ❤️ for Nigerian businesses, churches, freelancers and creators.
+
+**Repository:** https://github.com/heidif24/LLM24

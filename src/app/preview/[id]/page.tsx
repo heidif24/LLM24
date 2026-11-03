@@ -4,54 +4,74 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getSiteById, type SavedSite } from "@/lib/auth";
 
 export default function PreviewPage({ params }: { params: { id: string } }) {
-  const [site, setSite] = useState<any>(null);
+  const [site, setSite] = useState<SavedSite | null>(null);
 
   useEffect(() => {
-    const raw = localStorage.getItem("naijabuild_last_site");
-    if (raw) {
-      try {
-        setSite(JSON.parse(raw));
-      } catch (e) {}
+    const s = getSiteById(params.id);
+    if (s) {
+      setSite(s);
+    } else {
+      // Fallback to last generated
+      const raw = localStorage.getItem("naijabuild_last_site");
+      if (raw) {
+        try {
+          const data = JSON.parse(raw);
+          setSite({
+            id: params.id,
+            userId: "",
+            title: data.title,
+            tagline: data.tagline,
+            primaryColor: data.primaryColor,
+            status: "draft",
+            data,
+            createdAt: new Date().toISOString(),
+          });
+        } catch {}
+      }
     }
-  }, []);
+  }, [params.id]);
 
   if (!site) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-gray-500">No website found.</p>
-          <Link href="/build" className="text-green-600 font-medium mt-2 inline-block">
-            Create one
+          <p className="text-gray-500">Website not found.</p>
+          <Link href="/dashboard" className="text-green-600 font-medium mt-2 inline-block">
+            Back to Dashboard
           </Link>
         </div>
       </div>
     );
   }
 
+  const data = site.data;
   const color = site.primaryColor || "#16a34a";
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Preview toolbar */}
       <div className="sticky top-0 z-30 bg-gray-900 text-white px-4 py-2 flex items-center justify-between text-sm">
         <div className="flex items-center gap-3">
           <Link href="/dashboard" className="flex items-center gap-1.5 hover:text-gray-300">
             <ArrowLeft className="w-4 h-4" />
-            Back to Dashboard
+            Dashboard
           </Link>
           <span className="text-gray-500">|</span>
-          <span className="text-gray-400">Preview Mode</span>
+          <span className="text-gray-400">
+            {site.status === "published" ? "Live" : "Preview"}
+          </span>
         </div>
-        <Button size="sm" className="bg-green-600 hover:bg-green-500">
-          Publish Website
-        </Button>
+        {site.status !== "published" && (
+          <Button size="sm" className="bg-green-600 hover:bg-green-500" asChild>
+            <Link href={`/checkout?site=${site.id}`}>Publish</Link>
+          </Button>
+        )}
       </div>
 
-      {/* Actual website preview */}
       <div style={{ borderTop: `5px solid ${color}` }}>
-        {site.pages?.[0]?.sections?.map((section: any, idx: number) => {
+        {data?.pages?.[0]?.sections?.map((section: any, idx: number) => {
           if (section.type === "hero") {
             return (
               <section key={idx} className="px-4 py-20 text-center max-w-3xl mx-auto">
@@ -71,7 +91,6 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
               </section>
             );
           }
-
           if (section.type === "features") {
             return (
               <section key={idx} className="px-4 py-16 bg-gray-50">
@@ -95,7 +114,6 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
               </section>
             );
           }
-
           if (section.type === "about") {
             return (
               <section key={idx} className="px-4 py-16 max-w-2xl mx-auto text-center">
@@ -104,7 +122,6 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
               </section>
             );
           }
-
           if (section.type === "contact") {
             return (
               <section key={idx} id="contact" className="px-4 py-16 bg-gray-900 text-white">
@@ -131,12 +148,11 @@ export default function PreviewPage({ params }: { params: { id: string } }) {
               </section>
             );
           }
-
           return null;
         })}
 
         <footer className="py-6 text-center text-sm text-gray-400 border-t">
-          Built with NaijaBuild
+          Built with NaijaBuild 🇳🇬
         </footer>
       </div>
     </div>

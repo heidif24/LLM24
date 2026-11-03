@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -14,6 +14,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getCurrentUser, saveSite, type User } from "@/lib/auth";
 
 const EXAMPLE_PROMPTS = [
   "A modern website for my fashion boutique in Lagos that sells Ankara and ready-to-wear clothes",
@@ -25,11 +26,18 @@ const EXAMPLE_PROMPTS = [
 
 export default function BuildPage() {
   const router = useRouter();
+  const [user, setUser] = useState<User | null>(null);
   const [prompt, setPrompt] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [step, setStep] = useState<"input" | "generating" | "preview">("input");
   const [generatedSite, setGeneratedSite] = useState<any>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const u = getCurrentUser();
+    setUser(u);
+  }, []);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
@@ -45,17 +53,31 @@ export default function BuildPage() {
       });
 
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Generation failed");
-      }
+      if (!res.ok) throw new Error(data.error || "Generation failed");
 
       setGeneratedSite(data.site);
-      // Save to localStorage for now (later will use real DB)
-      localStorage.setItem("naijabuild_last_site", JSON.stringify(data.site));
+
+      // Auto-save if logged in
+      if (user) {
+        const id = crypto.randomUUID();
+        saveSite({
+          id,
+          userId: user.id,
+          title: data.site.title || "My Website",
+          tagline: data.site.tagline || "",
+          primaryColor: data.site.primaryColor || "#16a34a",
+          status: "draft",
+          data: data.site,
+          createdAt: new Date().toISOString(),
+        });
+        setSavedId(id);
+      } else {
+        // Keep temporary for guests
+        localStorage.setItem("naijabuild_last_site", JSON.stringify(data.site));
+      }
+
       setStep("preview");
     } catch (err: any) {
-      console.error(err);
       setError(err.message || "Something went wrong. Please try again.");
       setStep("input");
     } finally {
@@ -77,8 +99,11 @@ export default function BuildPage() {
             </div>
             <span className="font-semibold text-sm">NaijaBuild</span>
           </div>
-          <Link href="/dashboard" className="text-sm text-gray-600 hover:text-gray-900">
-            Dashboard
+          <Link
+            href={user ? "/dashboard" : "/login"}
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
+            {user ? "Dashboard" : "Log in"}
           </Link>
         </div>
       </header>
@@ -91,9 +116,7 @@ export default function BuildPage() {
                 <Sparkles className="w-4 h-4" />
                 AI Website Builder
               </div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Describe the website you want
-              </h1>
+              <h1 className="text-3xl font-bold text-gray-900">Describe the website you want</h1>
               <p className="mt-3 text-gray-600">
                 Write in plain English. Be as detailed or as simple as you like.
               </p>
@@ -114,23 +137,16 @@ export default function BuildPage() {
               />
               <div className="border-t border-gray-100 px-5 py-4 flex items-center justify-between bg-gray-50">
                 <p className="text-xs text-gray-500 hidden sm:block">
-                  Tip: Mention your business type, location and what visitors should do
+                  Tip: Mention business type, location and what visitors should do
                 </p>
-                <Button
-                  onClick={handleGenerate}
-                  disabled={!prompt.trim() || isGenerating}
-                  size="lg"
-                  className="min-w-[140px]"
-                >
+                <Button onClick={handleGenerate} disabled={!prompt.trim() || isGenerating} size="lg">
                   {isGenerating ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Building...
+                      <Loader2 className="w-4 h-4 animate-spin" /> Building...
                     </>
                   ) : (
                     <>
-                      <Wand2 className="w-4 h-4" />
-                      Generate Website
+                      <Wand2 className="w-4 h-4" /> Generate Website
                     </>
                   )}
                 </Button>
@@ -168,11 +184,8 @@ export default function BuildPage() {
                 { icon: Layout, text: "Creating page structure" },
                 { icon: Type, text: "Writing content that fits your business" },
                 { icon: ImageIcon, text: "Choosing colors and style" },
-              ].map((item, i) => (
-                <div
-                  key={item.text}
-                  className="flex items-center gap-3 text-sm text-gray-600"
-                >
+              ].map((item) => (
+                <div key={item.text} className="flex items-center gap-3 text-sm text-gray-600">
                   <item.icon className="w-4 h-4 text-green-600" />
                   {item.text}
                 </div>
@@ -202,7 +215,6 @@ export default function BuildPage() {
                 </div>
               </div>
 
-              {/* Simple live preview of generated content */}
               <div className="p-6 sm:p-10" style={{ borderTop: `4px solid ${generatedSite.primaryColor || "#16a34a"}` }}>
                 <div className="max-w-xl mx-auto space-y-10">
                   <div className="text-center">
@@ -265,24 +277,30 @@ export default function BuildPage() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-                size="lg"
-                className="flex-1"
-                onClick={() => router.push("/dashboard")}
-              >
-                Save & Go to Dashboard
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                className="flex-1"
-                onClick={() => {
-                  setStep("input");
-                  setGeneratedSite(null);
-                }}
-              >
-                Generate Another
-              </Button>
+              {user && savedId ? (
+                <>
+                  <Button size="lg" className="flex-1" onClick={() => router.push(`/checkout?site=${savedId}`)}>
+                    Publish Website
+                  </Button>
+                  <Button variant="outline" size="lg" className="flex-1" onClick={() => router.push("/dashboard")}>
+                    Go to Dashboard
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="lg" className="flex-1" onClick={() => router.push("/login")}>
+                    Sign up to Save & Publish
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="flex-1"
+                    onClick={() => { setStep("input"); setGeneratedSite(null); }}
+                  >
+                    Generate Another
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         )}
